@@ -1,92 +1,92 @@
-# partie-7
+# CREATION DU LOAD-BALANCER
 
+Dans une architecture, un load-balancer est un équipement qui permet de recevoir le traffic entrant pour le distribuer vers un ou plusieurs serveurs. Un load-balancer dispose de nombreuses fonctionnalités comme :
 
+- L’équilibrage de charge entre les serveurs
+- La redirection de port
+- Encapsulation / décapsulation HTTPS
 
-## Getting started
+Dans le cadre de ce lab, le load-balancer de votre infrastructure est chargé d’accueillir le traffic HTTP de votre application et le distribuer vers votre serveur web pour traitement.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Déclaration du load-balancer
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Dans terraform, un load-balancer AWS se déclare au travers d’une ressource **aws_lb**.
 
-## Add your files
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb), déclarez votre load-balancer dans un fichier nommé **load_balancer.tf** avec les caractéristiques suivantes :
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+| Caractéristique | Valeur                                                                     |
+|-----------------|----------------------------------------------------------------------------|
+| Nom             | Le nom de votre load-balancer (utilisez la variable locale correspondante) |
+| Interne ?       | Non                                                                        |
+| Type            | applicatif                                                                 |
+| Security group  | Le security group correspondant précédemment créé                          |
+| Sous-réseaux    | Les 2 sous-réseaux publics (utilisez les datasources correspondantes)      |
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/thenuumfactory/mainlab/partie-7.git
-git branch -M main
-git push -uf origin main
-```
+## Déclaration du target group
 
-## Integrate with your tools
+Sur AWS, un load-balancer distribue le traffic entrant vers une ressource appelée « target group ». Un target group est caractérisé par :
 
-- [ ] [Set up project integrations](https://gitlab.com/thenuumfactory/mainlab/partie-7/-/settings/integrations)
+- Un type de targets (serveurs, adresses IPs, load-balancers, etc…)
+- Le protocole à utiliser par le load-balancer pour y distribuer le traffic
+- Le port à utiliser par le load-balancer pour y distribuer le traffic
 
-## Collaborate with your team
+C’est dans le target group que sont configurées les règles de healthcheck que le load-balancer applique pour connaître la disponibilité de ses targets.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+Enfin, un load-balancer peut être rattaché à un ou plusieurs target groups.
 
-## Test and Deploy
+Dans terraform, un target group se déclare au travers d’une ressource **aws_lb_target_group**.
 
-Use the built-in continuous integration in GitLab.
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_target_group), déclarez un target group dans votre fichier **load_balancer.tf** avec les caractéristiques suivantes :
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+| Caractéristique | Valeur                                                                                        |
+|-----------------|-----------------------------------------------------------------------------------------------|
+| Nom             | nuumfactory-\<environnement\>-tg-\<digit\> (vous pouvez créer une variable locale supplémentaire) |
+| Port            | 80                                                                                                |
+| Protocole       | HTTP                                                                                              |
+| VPC             | Le VPC du lab, nuumfactory-vpc. Utilisez la datasource correspondante.                            |
 
-***
+## Déclaration des targets
 
-# Editing this README
+Vous aurez noté que les cibles ne sont pas déclarées dans le target group. En effet sur AWS, un target group est un objet à part entière dans lequel nous pouvons enregistrer des cibles (target).
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Dans terraform, l’enregistrement d’une target dans un target group s’effectue au travers de la ressource **aws_lb_target_group_attachment**.
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_target_group_attachment), enregistrez votre serveur web dans le target group que vous avez précédemment déclaré (dans le fichier **load_balancer.tf**).
 
-## Name
-Choose a self-explaining name for your project.
+## Déclaration du listener
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Un listener est un processus qui recherche les demandes de connexion effectuées sur le protocole et le port qui y sont configurés. Chaque listener contient une règle qui décrit comment le traffic reçu par le load-balancer doit être distribué aux target groups qui lui sont attachés.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Un load-balancer peut contenir un ou plusieurs listeners. Dans terraform, un listener se déclare au travers de la ressource **aws_lb_listener**.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener), déclarez dans votre fichier **load_balancer.tf** un listener dans votre fichier **main.tf** afin que votre load-balancer écoute le port **80** (protocole HTTP) et redistribue les requêtes qu’il y reçoit vers le target group que vous venez de déclarer.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+*N.B : Les paramètres ssl_policy et certificate_arn ne sont pas à renseigner lorsque le protocole est HTTP.*
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+A ce stade, vous avez déclaré l’ensemble des éléments requis pour le bon fonctionnement de votre balancer :
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Le listener permet au load-balancer d’écouter le traffic HTTP entrant sur le port 80
+- Le listener permet au load-balancer de distribuer le flux entrant à son target group
+- Le serveur web étant enregistré dans le target group, il peut recevoir et traiter ce flux
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Création du load-balancer
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Exécutez la commande **terraform fmt** puis la commande **terraform plan -var-file="developpement.tfvars"** : Corrigez les éventuelles erreurs obtenues et réexécutez la commande jusqu’à ne plus en obtenir.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Observez le plan d’exécution et s’il correspond à ce que vous souhaitez réaliser, exécutez la commande **terraform apply -auto-approve -var-file="developpement.tfvars"**.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Terraform procède à la création de votre load-balancer et des ressources annexes déclarées.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Test d'accès web
 
-## License
-For open source projects, say how it is licensed.
+A ce stade, tous les éléments sont en place pour que vous puissiez accéder à la page d’accueil par défaut de votre serveur web :
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- Connectez-vous à la console AWS, tapez Load balancers dans la barre de recherche et cliquez sur la feature Load balancers
+- Identifiez et sélectionnez votre load-balancer, et observez sa description qui s’affiche en bas de page
+- Copiez le DNS name affiché et accédez-y depuis votre navigateur favori
+
+La page suivante devrait s’afficher :
+
+<img src="img/apache-test-page.jpg" />
+
+Cela veut dire que votre requête a correctement été reçue par votre load-balancer, puis transmise à votre serveur web qui l’a ensuite traitée en vous retournant cette page web.
