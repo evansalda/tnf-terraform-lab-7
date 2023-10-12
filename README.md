@@ -59,7 +59,7 @@ Un listener est un processus qui recherche les demandes de connexion effectuées
 
 Un load-balancer peut contenir un ou plusieurs listeners. Dans terraform, un listener se déclare au travers de la ressource **aws_lb_listener**.
 
-En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener), déclarez dans votre fichier **load_balancer.tf** un listener dans votre fichier **main.tf** afin que votre load-balancer écoute le port **80** (protocole HTTP) et redistribue les requêtes qu’il y reçoit vers le target group que vous venez de déclarer.
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener), déclarez un listener dans votre fichier **load_balancer.tf** afin que votre load-balancer écoute le port **80** (protocole HTTP) et redistribue les requêtes qu’il y reçoit vers le target group que vous venez de déclarer.
 
 *N.B : Les paramètres ssl_policy et certificate_arn ne sont pas à renseigner lorsque le protocole est HTTP.*
 
